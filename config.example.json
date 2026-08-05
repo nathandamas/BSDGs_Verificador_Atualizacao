@@ -1,0 +1,38 @@
+{
+  "version": 3,
+  "bsdgs": [
+    {
+      "id": "bsdg-litoral",
+      "name": "BSDG_Litoral",
+      "local_path": "C:\\Users\\natha\\ufpr.br\\Banco de Dados Geográficos do LAGEAMB - BDG_Litoral\\dadosGeoespaciais\\geopackage",
+      "enabled": true,
+      "recursive": true,
+      "notes": "Prova de conceito",
+      "needs_name_confirmation": false
+    }
+  ],
+  "schedule": {
+    "enabled": false,
+    "day": "FRI",
+    "time": "18:00",
+    "scan_all_enabled": true,
+    "notify_after_run": true,
+    "reports_output_dir": "C:\\BSDGs\\agendado\\relatorios",
+    "logs_output_dir": "C:\\BSDGs\\agendado\\logs"
+  },
+  "scan": {
+    "max_workers": 2,
+    "hash_mode": "changed",
+    "validate_unchanged": false,
+    "run_quick_check": true,
+    "count_features": false,
+    "sqlite_timeout_seconds": 10
+  },
+  "reports": {
+    "csv_enabled": true,
+    "json_enabled": true,
+    "log_enabled": true,
+    "reports_output_dir": "C:\\BSDGs\\relatorios",
+    "logs_output_dir": "C:\\BSDGs\\logs"
+  }
+}

@@ -1,0 +1,95 @@
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import sys
+from datetime import datetime
+from pathlib import Path
+
+from .config import ConfigManager
+from .logging_setup import configure_logging
+from .scheduler import WindowsScheduler
+from .service import VerificationService
+from .paths import logs_dir, reports_dir
+
+LOGGER = logging.getLogger(__name__)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="BSDGs — Verificador de Atualização")
+    parser.add_argument("--scan-all-silent", action="store_true", help="Executa todas as BSDGs ativas sem abrir a interface.")
+    parser.add_argument("--scan-bsdg", action="append", default=[], help="Nome ou identificador de uma BSDG ativa a verificar.")
+    parser.add_argument("--install-schedule", action="store_true", help="Instala o agendamento semanal.")
+    parser.add_argument("--remove-schedule", action="store_true", help="Remove o agendamento semanal.")
+    parser.add_argument("--day", default="FRI", help="Dia do agendamento: MON..SUN.")
+    parser.add_argument("--time", default="18:00", help="Horário HH:MM.")
+    parser.add_argument("--show-data-dir", action="store_true", help="Mostra a pasta de dados da aplicação.")
+    return parser
+
+
+def run_cli(args: argparse.Namespace) -> int:
+    if args.show_data_dir:
+        from .paths import app_data_dir
+
+        print(app_data_dir())
+        return 0
+
+    if args.install_schedule:
+        result = WindowsScheduler().install_weekly(args.day.upper(), args.time)
+        print(result.message)
+        if result.raw_output:
+            print(result.raw_output)
+        return 0 if result.success else 1
+
+    if args.remove_schedule:
+        result = WindowsScheduler().remove()
+        print(result.message)
+        if result.raw_output:
+            print(result.raw_output)
+        return 0 if result.success else 1
+
+    if args.scan_all_silent or args.scan_bsdg:
+        config = ConfigManager().load()
+        if args.scan_all_silent:
+            configured_logs = (
+                Path(config.schedule.logs_output_dir)
+                if config.schedule.logs_output_dir
+                else logs_dir()
+            )
+            configured_reports = (
+                Path(config.schedule.reports_output_dir)
+                if config.schedule.reports_output_dir
+                else reports_dir()
+            )
+        else:
+            configured_logs = Path(config.reports.logs_output_dir) if config.reports.logs_output_dir else logs_dir()
+            configured_reports = Path(config.reports.reports_output_dir) if config.reports.reports_output_dir else reports_dir()
+        configured_logs.mkdir(parents=True, exist_ok=True)
+        configured_reports.mkdir(parents=True, exist_ok=True)
+        log_path = configure_logging(
+            console=not args.scan_all_silent,
+            explicit_path=configured_logs / f"verificacao_{datetime.now():%Y%m%d_%H%M%S}.log",
+        )
+        selected_ids: set[str] | None = None
+        if args.scan_bsdg:
+            requested = {value.casefold() for value in args.scan_bsdg}
+            selected_ids = {
+                item.id
+                for item in config.bsdgs
+                if item.id.casefold() in requested or item.name.casefold() in requested
+            }
+            if not selected_ids:
+                print("Nenhuma BSDG correspondente foi localizada.", file=sys.stderr)
+                return 2
+        summary = VerificationService().run_scan(
+            selected_bsdg_ids=selected_ids,
+            mode="AGENDADA" if args.scan_all_silent else "CLI",
+            log_path=str(log_path),
+            report_output_dir=configured_reports,
+        )
+        if not args.scan_all_silent:
+            print(json.dumps(summary.to_dict(), ensure_ascii=False, indent=2))
+        return 0 if summary.outcome != "CANCELADA" else 3
+
+    return -1
