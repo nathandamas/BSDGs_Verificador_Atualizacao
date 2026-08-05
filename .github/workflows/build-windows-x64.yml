@@ -1,0 +1,103 @@
+name: Build Windows x64
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+    paths:
+      - "**.py"
+      - "**.spec"
+      - "assets/**"
+      - "requirements-dev.txt"
+      - ".github/workflows/build-windows-x64.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 20
+
+    steps:
+      - name: Baixar código do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python x64
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: "x64"
+          cache: "pip"
+
+      - name: Confirmar arquitetura
+        shell: pwsh
+        run: |
+          python -c "import platform, struct; print('Python:', platform.python_version()); print('Machine:', platform.machine()); print('Bits:', struct.calcsize('P')*8); assert platform.machine().upper() in ('AMD64','X86_64'); assert struct.calcsize('P')*8 == 64"
+
+      - name: Instalar dependências
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+          python -m pip install pytest
+
+      - name: Executar testes
+        shell: pwsh
+        run: python -m pytest -q
+
+      - name: Gerar executável único
+        shell: pwsh
+        run: |
+          python -m PyInstaller --clean --noconfirm BSDGs_Verificador_Atualizacao.spec
+
+      - name: Renomear e verificar arquitetura PE
+        shell: pwsh
+        run: |
+          $src = "dist/BSDGs_Verificador_Atualizacao.exe"
+          $dst = "dist/BSDGs_Verificador_Atualizacao_v1.3.0_windows_x64.exe"
+
+          if (-not (Test-Path $src)) {
+            throw "Executável não encontrado: $src"
+          }
+
+          Move-Item $src $dst -Force
+
+          $stream = [System.IO.File]::OpenRead($dst)
+          $reader = [System.IO.BinaryReader]::new($stream)
+
+          try {
+            $stream.Position = 0x3C
+            $peOffset = $reader.ReadInt32()
+            $stream.Position = $peOffset + 4
+            $machine = $reader.ReadUInt16()
+          }
+          finally {
+            $reader.Dispose()
+            $stream.Dispose()
+          }
+
+          if ($machine -ne 0x8664) {
+            throw ('Arquitetura PE incorreta: 0x{0:X4}; esperado AMD64 0x8664.' -f $machine)
+          }
+
+          Write-Host "PE confirmado: Windows x64 / AMD64 (0x8664)"
+
+          $hash = Get-FileHash $dst -Algorithm SHA256
+          "$($hash.Hash)  $([System.IO.Path]::GetFileName($dst))" |
+            Set-Content "$dst.sha256" -Encoding ascii
+
+          Get-Item $dst | Format-List Name, Length, LastWriteTime
+          Get-Content "$dst.sha256"
+
+      - name: Publicar executável x64
+        uses: actions/upload-artifact@v4
+        with:
+          name: BSDGs-Verificador-v1.3.0-Windows-x64
+          path: |
+            dist/BSDGs_Verificador_Atualizacao_v1.3.0_windows_x64.exe
+            dist/BSDGs_Verificador_Atualizacao_v1.3.0_windows_x64.exe.sha256
+          if-no-files-found: error
+          retention-days: 30
