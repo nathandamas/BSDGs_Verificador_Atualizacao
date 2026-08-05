@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterable
 
 from .constants import DATABASE_SCHEMA_VERSION
 from .models import FileScanResult, ScanSummary
 from .paths import database_path
-
 
 class InventoryDB:
     def __init__(self, path: Path | None = None) -> None:
@@ -23,8 +24,19 @@ class InventoryDB:
         connection.execute("PRAGMA journal_mode = WAL")
         return connection
 
+    @contextmanager
+    def _connection(self) -> Iterator[sqlite3.Connection]:
+        """Abre uma conexão transacional e garante seu fechamento no Windows."""
+        connection = self._connect()
+
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
+
     def initialize(self) -> None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS scan_runs (
@@ -114,7 +126,7 @@ class InventoryDB:
             connection.execute(f"PRAGMA user_version = {DATABASE_SCHEMA_VERSION}")
 
     def start_run(self, started_at: str, mode: str) -> int:
-        with self._connect() as connection:
+        with self._connection() as connection:
             cursor = connection.execute(
                 "INSERT INTO scan_runs(started_at, mode) VALUES (?, ?)",
                 (started_at, mode),
@@ -122,7 +134,7 @@ class InventoryDB:
             return int(cursor.lastrowid)
 
     def finish_run(self, summary: ScanSummary) -> None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute(
                 """
                 UPDATE scan_runs
@@ -163,7 +175,7 @@ class InventoryDB:
         status: str,
         message: str,
     ) -> int:
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute(
                 """
                 INSERT INTO bsdgs(config_id, name, local_path, enabled, recursive, last_scan_at, last_status, last_message)
@@ -194,7 +206,7 @@ class InventoryDB:
             return int(row["id"])
 
     def update_bsdg_status(self, config_id: str, status: str, message: str, scan_at: str) -> None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute(
                 """
                 UPDATE bsdgs
@@ -205,7 +217,7 @@ class InventoryDB:
             )
 
     def get_previous_file(self, bsdg_db_id: int, relative_path: str) -> dict[str, Any] | None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             row = connection.execute(
                 """
                 SELECT * FROM files
@@ -217,7 +229,7 @@ class InventoryDB:
 
     def upsert_file(self, bsdg_db_id: int, result: FileScanResult, run_id: int, seen_at: str) -> int:
         validation_json = json.dumps(result.validation.to_dict(), ensure_ascii=False)
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute(
                 """
                 INSERT INTO files(
@@ -314,7 +326,7 @@ class InventoryDB:
         removed_at: str,
     ) -> int:
         seen = set(seen_relative_paths)
-        with self._connect() as connection:
+        with self._connection() as connection:
             rows = connection.execute(
                 "SELECT id, relative_path FROM files WHERE bsdg_id = ? AND removed_at IS NULL",
                 (bsdg_db_id,),
@@ -333,14 +345,14 @@ class InventoryDB:
             return len(removed_ids)
 
     def latest_run(self) -> dict[str, Any] | None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             row = connection.execute(
                 "SELECT * FROM scan_runs ORDER BY id DESC LIMIT 1"
             ).fetchone()
             return dict(row) if row else None
 
     def dashboard_stats(self) -> dict[str, Any]:
-        with self._connect() as connection:
+        with self._connection() as connection:
             bsdg = connection.execute(
                 """
                 SELECT COUNT(*) total,
@@ -360,7 +372,7 @@ class InventoryDB:
             }
 
     def list_files(self, limit: int = 5000) -> list[dict[str, Any]]:
-        with self._connect() as connection:
+        with self._connection() as connection:
             rows = connection.execute(
                 """
                 SELECT f.*, b.name AS bsdg_name
@@ -374,7 +386,7 @@ class InventoryDB:
             return [dict(row) for row in rows]
 
     def list_files_for_run(self, run_id: int) -> list[dict[str, Any]]:
-        with self._connect() as connection:
+        with self._connection() as connection:
             rows = connection.execute(
                 """
                 SELECT f.*, b.name AS bsdg_name
@@ -388,7 +400,7 @@ class InventoryDB:
             return [dict(row) for row in rows]
 
     def list_layers_for_run(self, run_id: int) -> list[dict[str, Any]]:
-        with self._connect() as connection:
+        with self._connection() as connection:
             rows = connection.execute(
                 """
                 SELECT b.name AS bsdg_name, f.relative_path, f.file_name,
