@@ -57,7 +57,7 @@ jobs:
         shell: pwsh
         run: |
           $src = "dist/BSDGs_Verificador_Atualizacao.exe"
-          $dst = "dist/BSDGs_Verificador_Atualizacao_v1.3.0_windows_x64.exe"
+          $dst = "dist/BSDGs_Verificador_Atualizacao_v1.3.2_windows_x64.exe"
 
           if (-not (Test-Path $src)) {
             throw "Executável não encontrado: $src"
@@ -92,12 +92,33 @@ jobs:
           Get-Item $dst | Format-List Name, Length, LastWriteTime
           Get-Content "$dst.sha256"
 
+      - name: Testar inicialização do executável
+        shell: pwsh
+        run: |
+          $exe = "dist/BSDGs_Verificador_Atualizacao_v1.3.2_windows_x64.exe"
+          $result = "dist/bsdgs_self_test_windows_x64.json"
+
+          & $exe --self-test-file $result
+          if ($LASTEXITCODE -ne 0) {
+            if (Test-Path $result) {
+              Get-Content $result
+            }
+            throw "O autoteste do executável retornou código $LASTEXITCODE."
+          }
+
+          if (-not (Test-Path $result)) {
+            throw "O arquivo do autoteste não foi produzido."
+          }
+
+          Get-Content $result
+
       - name: Publicar executável x64
         uses: actions/upload-artifact@v4
         with:
-          name: BSDGs-Verificador-v1.3.0-Windows-x64
+          name: BSDGs-Verificador-v1.3.2-Windows-x64
           path: |
-            dist/BSDGs_Verificador_Atualizacao_v1.3.0_windows_x64.exe
-            dist/BSDGs_Verificador_Atualizacao_v1.3.0_windows_x64.exe.sha256
+            dist/BSDGs_Verificador_Atualizacao_v1.3.2_windows_x64.exe
+            dist/BSDGs_Verificador_Atualizacao_v1.3.2_windows_x64.exe.sha256
+            dist/bsdgs_self_test_windows_x64.json
           if-no-files-found: error
           retention-days: 30
