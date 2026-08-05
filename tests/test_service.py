@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 from bsdgs_verifier.config import ConfigManager
@@ -51,7 +52,6 @@ class VerificationServiceTest(unittest.TestCase):
             self.assertEqual(summary.invalid_files, 0)
             self.assertTrue(summary.report_paths)
 
-
     def test_scan_can_override_report_output_directory(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -85,11 +85,14 @@ class VerificationServiceTest(unittest.TestCase):
             summary = service.run_scan(mode="TESTE", report_output_dir=custom_reports)
 
             self.assertTrue(summary.report_paths)
-            self.assertTrue(all(Path(item).parent == custom_reports for item in summary.report_paths))
+            self.assertTrue(
+                all(Path(item).parent == custom_reports for item in summary.report_paths)
+            )
 
     @staticmethod
     def _create_gpkg(path: Path) -> None:
-        with sqlite3.connect(path) as connection:
+        # O fechamento explícito evita WinError 32 no Windows/GitHub Actions.
+        with closing(sqlite3.connect(path)) as connection:
             connection.executescript(
                 """
                 CREATE TABLE gpkg_spatial_ref_sys (
@@ -128,6 +131,7 @@ class VerificationServiceTest(unittest.TestCase):
                 ('APT_sambaquis', 'geom', 'POINT', 4674, 0, 0);
                 """
             )
+            connection.commit()
 
 
 if __name__ == "__main__":

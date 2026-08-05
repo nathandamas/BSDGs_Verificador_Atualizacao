@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 from bsdgs_verifier.gpkg_validator import GeoPackageValidator
@@ -13,7 +14,10 @@ class GeoPackageValidatorTest(unittest.TestCase):
     def test_valid_minimal_feature_geopackage(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "teste.gpkg"
-            with sqlite3.connect(path) as connection:
+
+            # O context manager nativo de sqlite3 não fecha a conexão.
+            # closing() garante o fechamento do arquivo no Windows.
+            with closing(sqlite3.connect(path)) as connection:
                 connection.executescript(
                     """
                     CREATE TABLE gpkg_spatial_ref_sys (
@@ -52,6 +56,8 @@ class GeoPackageValidatorTest(unittest.TestCase):
                     ('APT_sambaquis', 'geom', 'POINT', 4674, 0, 0);
                     """
                 )
+                connection.commit()
+
             result = GeoPackageValidator(run_quick_check=True).validate(path)
             self.assertEqual(result.status, ValidationStatus.VALID)
             self.assertTrue(result.is_geopackage)
@@ -62,8 +68,11 @@ class GeoPackageValidatorTest(unittest.TestCase):
     def test_rejects_plain_sqlite_without_gpkg_tables(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "plain.sqlite"
-            with sqlite3.connect(path) as connection:
+
+            with closing(sqlite3.connect(path)) as connection:
                 connection.execute("CREATE TABLE teste(id INTEGER)")
+                connection.commit()
+
             result = GeoPackageValidator().validate(path)
             self.assertEqual(result.status, ValidationStatus.INVALID)
             self.assertFalse(result.is_geopackage)
