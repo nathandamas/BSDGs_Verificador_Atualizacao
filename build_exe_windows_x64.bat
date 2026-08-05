@@ -4,7 +4,7 @@ cd /d "%~dp0"
 title BSDGs - Build Windows x64
 
 echo ============================================================
-echo BSDGs - Verificador de Atualizacao v1.3.0
+echo BSDGs - Verificador de Atualizacao v1.3.1
 echo Compilacao Windows x64 / AMD64
 echo ============================================================
 echo.
@@ -32,12 +32,12 @@ python -m PyInstaller --clean --noconfirm BSDGs_Verificador_Atualizacao.spec
 if errorlevel 1 goto :erro
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$src='dist\BSDGs_Verificador_Atualizacao.exe'; $dst='dist\BSDGs_Verificador_Atualizacao_v1.3.0_windows_x64.exe'; Move-Item $src $dst -Force; $s=[IO.File]::OpenRead($dst); $r=[IO.BinaryReader]::new($s); try {$s.Position=0x3C; $o=$r.ReadInt32(); $s.Position=$o+4; $m=$r.ReadUInt16()} finally {$r.Dispose();$s.Dispose()}; if($m-ne 0x8664){throw ('PE incorreto: 0x{0:X4}' -f $m)}; $h=Get-FileHash $dst -Algorithm SHA256; ($h.Hash+'  '+[IO.Path]::GetFileName($dst)) | Set-Content ($dst+'.sha256') -Encoding ascii; Write-Host 'PE confirmado: Windows x64 / AMD64'; Get-Item $dst | Format-List Name,Length"
+  "$src='dist\BSDGs_Verificador_Atualizacao.exe'; $dst='dist\BSDGs_Verificador_Atualizacao_v1.3.1_windows_x64.exe'; Move-Item $src $dst -Force; $s=[IO.File]::OpenRead($dst); $r=[IO.BinaryReader]::new($s); try {$s.Position=0x3C; $o=$r.ReadInt32(); $s.Position=$o+4; $m=$r.ReadUInt16()} finally {$r.Dispose();$s.Dispose()}; if($m-ne 0x8664){throw ('PE incorreto: 0x{0:X4}' -f $m)}; $h=Get-FileHash $dst -Algorithm SHA256; ($h.Hash+'  '+[IO.Path]::GetFileName($dst)) | Set-Content ($dst+'.sha256') -Encoding ascii; Write-Host 'PE confirmado: Windows x64 / AMD64'; Get-Item $dst | Format-List Name,Length"
 if errorlevel 1 goto :erro
 
 echo.
 echo Build concluido:
-echo %CD%\dist\BSDGs_Verificador_Atualizacao_v1.3.0_windows_x64.exe
+echo %CD%\dist\BSDGs_Verificador_Atualizacao_v1.3.1_windows_x64.exe
 pause
 exit /b 0
 

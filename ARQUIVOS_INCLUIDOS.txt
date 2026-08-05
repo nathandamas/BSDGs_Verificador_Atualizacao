@@ -1,0 +1,14 @@
+.github/workflows/build-windows-x64.yml
+ARQUIVOS_INCLUIDOS.txt
+BUILD_X64_GITHUB.md
+CHANGELOG.md
+INSTRUCOES_ATUALIZACAO.md
+bsdgs_verifier/constants.py
+bsdgs_verifier/enhanced_gui.py
+bsdgs_verifier/scheduler.py
+bsdgs_verifier/selection_state.py
+build_exe_windows_x64.bat
+main.py
+pyproject.toml
+tests/test_scheduler_selection.py
+tests/test_selection_state.py

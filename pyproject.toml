@@ -1,6 +1,6 @@
 [project]
 name = "bsdgs-verificador-atualizacao"
-version = "1.3.0"
+version = "1.3.1"
 description = "Inventário e validação periódica de GeoPackages de BSDGs sincronizadas pelo SharePoint/OneDrive."
 requires-python = ">=3.11"
 dependencies = []

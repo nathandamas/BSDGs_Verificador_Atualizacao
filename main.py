@@ -12,9 +12,9 @@ def main() -> int:
     if cli_result >= 0:
         return cli_result
 
-    from bsdgs_verifier.gui import Application
+    from bsdgs_verifier.enhanced_gui import EnhancedApplication
 
-    app = Application()
+    app = EnhancedApplication()
     app.mainloop()
     return 0
 

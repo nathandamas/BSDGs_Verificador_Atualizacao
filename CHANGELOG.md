@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.1 — seleção explícita da BSDG
+
+- indicação permanente da **BSDG selecionada** na tela inicial;
+- nova coluna visual de seleção com caixas `☐` e `☑` na tabela de BSDGs;
+- persistência local da BSDG selecionada entre execuções do aplicativo;
+- campo **BSDG selecionada** na tela de agendamento, abaixo das pastas de relatórios e logs;
+- agendamento semanal vinculado efetivamente à BSDG selecionada;
+- separação entre a BSDG atualmente selecionada e a BSDG já vinculada à tarefa do Windows;
+- identificação da BSDG nas caixas de escolha de saída, no resumo da execução e na aba de resultados;
+- exibição conjunta da BSDG, da pasta de relatórios e da pasta de logs nos contextos pertinentes;
+- versão atualizada para 1.3.1.
+
 ## 1.3.0 — seleção de saída e data/hora local
 
 - seleção obrigatória das pastas de relatórios e logs antes de cada verificação manual;

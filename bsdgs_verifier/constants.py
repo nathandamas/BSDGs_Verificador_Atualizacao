@@ -2,7 +2,7 @@ from __future__ import annotations
 
 APP_NAME = "BSDGs — Verificador de Atualização"
 APP_SLUG = "BSDGs_Verificador_Atualizacao"
-APP_VERSION = "1.3.0"
+APP_VERSION = "1.3.1"
 TASK_NAME = "BSDGs - Verificador de Atualizacao"
 CONFIG_VERSION = 3
 DATABASE_SCHEMA_VERSION = 1

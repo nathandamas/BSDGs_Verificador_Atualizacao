@@ -24,7 +24,12 @@ class WindowsScheduler:
     def is_supported() -> bool:
         return os.name == "nt"
 
-    def install_weekly(self, day_code: str, time_hhmm: str) -> SchedulerResult:
+    def install_weekly(
+        self,
+        day_code: str,
+        time_hhmm: str,
+        selected_bsdg_id: str | None = None,
+    ) -> SchedulerResult:
         if not self.is_supported():
             return SchedulerResult(False, "O agendamento automático está disponível somente no Windows.")
         if day_code not in DAY_NAMES_BY_CODE:
@@ -32,7 +37,7 @@ class WindowsScheduler:
         if not self._valid_time(time_hhmm):
             return SchedulerResult(False, f"Horário inválido: {time_hhmm}")
 
-        task_run = self._task_run_command()
+        task_run = self._task_run_command(selected_bsdg_id)
         command = [
             "schtasks",
             "/Create",
@@ -69,15 +74,22 @@ class WindowsScheduler:
             "Agendamento localizado.",
         )
 
-    def _task_run_command(self) -> str:
-        if getattr(sys, "frozen", False):
-            executable = Path(sys.executable).resolve()
-            return f'"{executable}" --scan-all-silent'
-
-        project_root = Path(__file__).resolve().parents[1]
-        main_script = project_root / "main.py"
+    def _task_run_command(self, selected_bsdg_id: str | None = None) -> str:
+        command_parts: list[str] = []
         executable = Path(sys.executable).resolve()
-        return f'"{executable}" "{main_script}" --scan-all-silent'
+        command_parts.append(str(executable))
+
+        if not getattr(sys, "frozen", False):
+            project_root = Path(__file__).resolve().parents[1]
+            command_parts.append(str(project_root / "main.py"))
+
+        # --scan-all-silent mantém o comportamento sem interface, usa os
+        # diretórios de saída do agendamento e define o modo como AGENDADA.
+        command_parts.append("--scan-all-silent")
+        if selected_bsdg_id:
+            command_parts.extend(["--scan-bsdg", selected_bsdg_id])
+
+        return subprocess.list2cmdline(command_parts)
 
     @staticmethod
     def _valid_time(value: str) -> bool:
