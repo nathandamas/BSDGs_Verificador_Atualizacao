@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import platform
 import sys
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -25,10 +27,56 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--day", default="FRI", help="Dia do agendamento: MON..SUN.")
     parser.add_argument("--time", default="18:00", help="Horário HH:MM.")
     parser.add_argument("--show-data-dir", action="store_true", help="Mostra a pasta de dados da aplicação.")
+    parser.add_argument(
+        "--self-test-file",
+        default="",
+        help="Executa um teste de inicialização da interface e grava o resultado em JSON.",
+    )
     return parser
 
 
+def _run_self_test(output_file: str) -> int:
+    path = Path(output_file).expanduser()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload: dict[str, object] = {
+        "timestamp": datetime.now().astimezone().isoformat(),
+        "python": sys.version,
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+        "executable": sys.executable,
+        "frozen": bool(getattr(sys, "frozen", False)),
+    }
+    app = None
+    try:
+        from .enhanced_gui import EnhancedApplication
+
+        app = EnhancedApplication()
+        app.withdraw()
+        app.update_idletasks()
+        payload["status"] = "OK"
+        payload["message"] = "A interface gráfica foi criada e inicializada com sucesso."
+        return_code = 0
+    except BaseException as error:
+        payload["status"] = "ERROR"
+        payload["message"] = str(error)
+        payload["traceback"] = "".join(
+            traceback.format_exception(type(error), error, error.__traceback__)
+        )
+        return_code = 1
+    finally:
+        if app is not None:
+            try:
+                app.destroy()
+            except Exception:
+                pass
+        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return return_code
+
+
 def run_cli(args: argparse.Namespace) -> int:
+    if args.self_test_file:
+        return _run_self_test(args.self_test_file)
+
     if args.show_data_dir:
         from .paths import app_data_dir
 

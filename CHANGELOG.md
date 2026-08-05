@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.2 — diagnóstico e teste real do executável
+
+- captura de falhas de inicialização em `startup_error.log`;
+- mensagem nativa do Windows quando a interface não consegue abrir;
+- novo parâmetro `--self-test-file` para validar a criação da interface gráfica;
+- workflow passa a executar o EXE gerado e falha se a interface não inicializar;
+- inclusão do JSON do autoteste no artefato;
+- imports explícitos da interface aprimorada no arquivo `.spec`;
+- correção do nome e da versão do artefato para 1.3.2.
+
 ## 1.3.1 — seleção explícita da BSDG
 
 - indicação permanente da **BSDG selecionada** na tela inicial;

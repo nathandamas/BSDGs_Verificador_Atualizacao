@@ -4,7 +4,6 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
-from contextlib import closing
 
 from bsdgs_verifier.config import ConfigManager
 from bsdgs_verifier.inventory import InventoryDB
@@ -90,7 +89,7 @@ class VerificationServiceTest(unittest.TestCase):
 
     @staticmethod
     def _create_gpkg(path: Path) -> None:
-        with closing(sqlite3.connect(path)) as connection:
+        with sqlite3.connect(path) as connection:
             connection.executescript(
                 """
                 CREATE TABLE gpkg_spatial_ref_sys (

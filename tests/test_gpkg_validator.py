@@ -5,7 +5,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from contextlib import closing
 from bsdgs_verifier.gpkg_validator import GeoPackageValidator
 from bsdgs_verifier.models import ValidationStatus
 
@@ -14,7 +13,7 @@ class GeoPackageValidatorTest(unittest.TestCase):
     def test_valid_minimal_feature_geopackage(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "teste.gpkg"
-            with closing(sqlite3.connect(path)) as connection:
+            with sqlite3.connect(path) as connection:
                 connection.executescript(
                     """
                     CREATE TABLE gpkg_spatial_ref_sys (
@@ -63,7 +62,7 @@ class GeoPackageValidatorTest(unittest.TestCase):
     def test_rejects_plain_sqlite_without_gpkg_tables(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "plain.sqlite"
-            with closing(sqlite3.connect(path)) as connection:
+            with sqlite3.connect(path) as connection:
                 connection.execute("CREATE TABLE teste(id INTEGER)")
             result = GeoPackageValidator().validate(path)
             self.assertEqual(result.status, ValidationStatus.INVALID)
