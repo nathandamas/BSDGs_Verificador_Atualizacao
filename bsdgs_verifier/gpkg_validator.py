@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -82,7 +83,12 @@ class GeoPackageValidator:
 
         try:
             uri = f"{path.resolve().as_uri()}?mode=ro"
-            with sqlite3.connect(uri, uri=True, timeout=self.timeout_seconds) as connection:
+            # O context manager nativo de sqlite3 confirma/reverte transações,
+            # mas não fecha a conexão. Em Windows, isso mantém o arquivo .gpkg
+            # bloqueado e impede a limpeza dos diretórios temporários.
+            with closing(
+                sqlite3.connect(uri, uri=True, timeout=self.timeout_seconds)
+            ) as connection:
                 connection.row_factory = sqlite3.Row
                 connection.execute("PRAGMA query_only = ON")
                 self._validate_connection(connection, result)
