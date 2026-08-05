@@ -5,6 +5,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from contextlib import closing
 from .constants import KNOWN_GEOMETRY_TYPES
 from .models import LayerValidation, ValidationResult, ValidationStatus
 
@@ -82,7 +83,13 @@ class GeoPackageValidator:
 
         try:
             uri = f"{path.resolve().as_uri()}?mode=ro"
-            with sqlite3.connect(uri, uri=True, timeout=self.timeout_seconds) as connection:
+            with closing(
+                sqlite3.connect(
+                    uri,
+                    uri=True,
+                    timeout=self.timeout_seconds,
+                )
+            ) as connection:
                 connection.row_factory = sqlite3.Row
                 connection.execute("PRAGMA query_only = ON")
                 self._validate_connection(connection, result)
