@@ -19,7 +19,7 @@ permissions:
 jobs:
   build:
     runs-on: windows-2025
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Baixar código do repositório
@@ -50,24 +50,18 @@ jobs:
 
       - name: Gerar executável único
         shell: pwsh
-        run: |
-          python -m PyInstaller --clean --noconfirm BSDGs_Verificador_Atualizacao.spec
+        run: python -m PyInstaller --clean --noconfirm BSDGs_Verificador_Atualizacao.spec
 
       - name: Renomear e verificar arquitetura PE
         shell: pwsh
         run: |
           $src = "dist/BSDGs_Verificador_Atualizacao.exe"
-          $dst = "dist/BSDGs_Verificador_Atualizacao_v1.3.2_windows_x64.exe"
-
-          if (-not (Test-Path $src)) {
-            throw "Executável não encontrado: $src"
-          }
-
+          $dst = "dist/BSDGs_Verificador_Atualizacao_v1.3.3_windows_x64.exe"
+          if (-not (Test-Path $src)) { throw "Executável não encontrado: $src" }
           Move-Item $src $dst -Force
 
           $stream = [System.IO.File]::OpenRead($dst)
           $reader = [System.IO.BinaryReader]::new($stream)
-
           try {
             $stream.Position = 0x3C
             $peOffset = $reader.ReadInt32()
@@ -83,69 +77,46 @@ jobs:
             throw ('Arquitetura PE incorreta: 0x{0:X4}; esperado AMD64 0x8664.' -f $machine)
           }
 
-          Write-Host "PE confirmado: Windows x64 / AMD64 (0x8664)"
-
           $hash = Get-FileHash $dst -Algorithm SHA256
           "$($hash.Hash)  $([System.IO.Path]::GetFileName($dst))" |
             Set-Content "$dst.sha256" -Encoding ascii
 
-          Get-Item $dst | Format-List Name, Length, LastWriteTime
-          Get-Content "$dst.sha256"
-
-      - name: Testar inicialização do executável
+      - name: Testar inicialização completa do executável
         shell: pwsh
         run: |
-          $exe = (Resolve-Path "dist/BSDGs_Verificador_Atualizacao_v1.3.2_windows_x64.exe").Path
+          $exe = (Resolve-Path "dist/BSDGs_Verificador_Atualizacao_v1.3.3_windows_x64.exe").Path
           $result = Join-Path $PWD "dist/bsdgs_self_test_windows_x64.json"
 
-          # O executável foi compilado com console=False (subsistema gráfico).
-          # A chamada direta com "& $exe" pode retornar imediatamente no PowerShell
-          # e deixar $LASTEXITCODE vazio. Start-Process -Wait -PassThru aguarda
-          # efetivamente o encerramento e fornece um ExitCode confiável.
           $process = Start-Process `
             -FilePath $exe `
             -ArgumentList @("--self-test-file", $result) `
             -Wait `
             -PassThru
 
-          $exitCode = $process.ExitCode
-          Write-Host "Código de saída do autoteste: $exitCode"
-
           if (Test-Path $result) {
-            Write-Host "Resultado do autoteste:"
-            Get-Content $result
+            Get-Content $result -Encoding UTF8
           }
 
-          if ($exitCode -ne 0) {
-            throw "O autoteste do executável retornou código $exitCode."
+          if ($process.ExitCode -ne 0) {
+            throw "O autoteste completo retornou código $($process.ExitCode)."
           }
 
           if (-not (Test-Path $result)) {
-            throw "O arquivo JSON do autoteste não foi produzido: $result"
+            throw "O arquivo JSON do autoteste não foi produzido."
           }
 
-          $json = Get-Content $result -Raw | ConvertFrom-Json
-          if ($json.status -ne "OK") {
-            throw "O JSON do autoteste não registrou status OK."
+          $json = Get-Content $result -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ($json.status -ne "OK" -or -not $json.startup_complete) {
+            throw "O autoteste não confirmou a inicialização completa."
           }
-
-      - name: Preservar diagnóstico do autoteste
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: BSDGs-Verificador-v1.3.2-self-test
-          path: |
-            dist/bsdgs_self_test_windows_x64.json
-          if-no-files-found: ignore
-          retention-days: 30
 
       - name: Publicar executável x64
         uses: actions/upload-artifact@v4
         with:
-          name: BSDGs-Verificador-v1.3.2-Windows-x64
+          name: BSDGs-Verificador-v1.3.3-Windows-x64
           path: |
-            dist/BSDGs_Verificador_Atualizacao_v1.3.2_windows_x64.exe
-            dist/BSDGs_Verificador_Atualizacao_v1.3.2_windows_x64.exe.sha256
+            dist/BSDGs_Verificador_Atualizacao_v1.3.3_windows_x64.exe
+            dist/BSDGs_Verificador_Atualizacao_v1.3.3_windows_x64.exe.sha256
             dist/bsdgs_self_test_windows_x64.json
           if-no-files-found: error
           retention-days: 30
