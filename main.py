@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from bsdgs_verifier.cli import build_parser, run_cli
+from bsdgs_verifier.instance_lock import SingleInstanceGuard
 
 
 def _startup_log_path() -> Path:
@@ -40,40 +41,60 @@ def _record_startup_failure(error: BaseException) -> Path:
     return path
 
 
-def _show_native_startup_error(log_path: Path) -> None:
-    message = (
-        "O BSDGs — Verificador de Atualização não conseguiu iniciar.\n\n"
-        "Foi criado um registro técnico em:\n"
-        f"{log_path}\n\n"
-        "Envie esse arquivo ao responsável pelo aplicativo."
-    )
+def _show_native_message(title: str, message: str, *, error: bool = False) -> None:
     if os.name == "nt":
         try:
             import ctypes
 
-            ctypes.windll.user32.MessageBoxW(0, message, "Falha ao iniciar o aplicativo", 0x10)
+            icon_flag = 0x10 if error else 0x40
+            ctypes.windll.user32.MessageBoxW(0, message, title, icon_flag)
             return
         except Exception:
             pass
     try:
-        print(message, file=sys.stderr)
+        print(f"{title}\n{message}", file=sys.stderr if error else sys.stdout)
     except Exception:
         pass
+
+
+def _show_native_startup_error(log_path: Path) -> None:
+    _show_native_message(
+        "Falha ao iniciar o aplicativo",
+        "O BSDGs — Verificador de Atualização não conseguiu iniciar.\n\n"
+        "Foi criado um registro técnico em:\n"
+        f"{log_path}\n\n"
+        "Envie esse arquivo ao responsável pelo aplicativo.",
+        error=True,
+    )
 
 
 def main() -> int:
     try:
         parser = build_parser()
         args = parser.parse_args()
+
         cli_result = run_cli(args)
         if cli_result >= 0:
             return cli_result
 
-        from bsdgs_verifier.enhanced_gui import EnhancedApplication
+        # O bloqueio de instância é aplicado somente à interface. As execuções
+        # silenciosas/agendadas continuam sendo tratadas pela CLI.
+        instance_guard = SingleInstanceGuard()
+        if not instance_guard.acquire():
+            _show_native_message(
+                "Aplicativo já em execução",
+                "O BSDGs — Verificador de Atualização já está aberto neste computador.\n\n"
+                "Localize a janela existente na barra de tarefas ou encerre o processo "
+                "pelo Gerenciador de Tarefas antes de iniciar uma nova instância.",
+            )
+            return 0
 
-        app = EnhancedApplication()
+        from bsdgs_verifier.deferred_gui import DeferredApplication
+
+        app = DeferredApplication()
         app.mainloop()
         return 0
+
     except BaseException as error:
         log_path = _record_startup_failure(error)
         _show_native_startup_error(log_path)

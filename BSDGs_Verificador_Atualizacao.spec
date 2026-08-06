@@ -13,6 +13,8 @@ a = Analysis(
         "tkinter.font",
         "sqlite3",
         "bsdgs_verifier.enhanced_gui",
+        "bsdgs_verifier.deferred_gui",
+        "bsdgs_verifier.instance_lock",
         "bsdgs_verifier.selection_state",
     ],
     hookspath=[],

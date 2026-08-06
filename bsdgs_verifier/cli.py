@@ -30,7 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--self-test-file",
         default="",
-        help="Executa um teste de inicialização da interface e grava o resultado em JSON.",
+        help="Executa um teste de inicialização completa e grava o resultado em JSON.",
     )
     return parser
 
@@ -48,13 +48,37 @@ def _run_self_test(output_file: str) -> int:
     }
     app = None
     try:
-        from .enhanced_gui import EnhancedApplication
+        from .deferred_gui import DeferredApplication
 
-        app = EnhancedApplication()
-        app.withdraw()
+        app = DeferredApplication(start_hidden=True)
+        completed = app.wait_for_startup(timeout_seconds=25.0)
         app.update_idletasks()
+
+        payload.update(
+            {
+                "startup_complete": app.startup_complete,
+                "startup_error": str(app.startup_error) if app.startup_error else "",
+                "state": app.state(),
+                "mapped": bool(app.winfo_ismapped()),
+                "viewable": bool(app.winfo_viewable()),
+                "window_id": int(app.winfo_id()),
+                "geometry": app.winfo_geometry(),
+            }
+        )
+
+        if not completed:
+            if app.startup_error is not None:
+                raise RuntimeError(
+                    f"Falha na inicialização adiada: {app.startup_error}"
+                )
+            raise TimeoutError(
+                "A inicialização adiada não terminou dentro de 25 segundos."
+            )
+
         payload["status"] = "OK"
-        payload["message"] = "A interface gráfica foi criada e inicializada com sucesso."
+        payload["message"] = (
+            "A interface e o inventário local foram inicializados com sucesso."
+        )
         return_code = 0
     except BaseException as error:
         payload["status"] = "ERROR"
@@ -69,7 +93,10 @@ def _run_self_test(output_file: str) -> int:
                 app.destroy()
             except Exception:
                 pass
-        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
     return return_code
 
 

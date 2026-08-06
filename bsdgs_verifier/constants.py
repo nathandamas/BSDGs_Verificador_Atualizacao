@@ -2,7 +2,7 @@ from __future__ import annotations
 
 APP_NAME = "BSDGs — Verificador de Atualização"
 APP_SLUG = "BSDGs_Verificador_Atualizacao"
-APP_VERSION = "1.3.2"
+APP_VERSION = "1.3.3"
 TASK_NAME = "BSDGs - Verificador de Atualizacao"
 CONFIG_VERSION = 3
 DATABASE_SCHEMA_VERSION = 1
@@ -26,7 +26,6 @@ DAY_CODES = {
 }
 DAY_NAMES_BY_CODE = {value: key for key, value in DAY_CODES.items()}
 
-# Windows file attributes used by OneDrive Files On-Demand.
 FILE_ATTRIBUTE_OFFLINE = 0x00001000
 FILE_ATTRIBUTE_RECALL_ON_OPEN = 0x00040000
 FILE_ATTRIBUTE_PINNED = 0x00080000
@@ -44,8 +43,6 @@ CORE_GEOMETRY_TYPES = {
     "GEOMETRYCOLLECTION",
 }
 
-# Tipos estendidos usuais. São aceitos como declaração conhecida, mas o programa
-# não tenta validar semanticamente todos os blobs geométricos sem GDAL/OGR.
 EXTENDED_GEOMETRY_TYPES = {
     "CIRCULARSTRING",
     "COMPOUNDCURVE",
