@@ -95,22 +95,49 @@ jobs:
       - name: Testar inicialização do executável
         shell: pwsh
         run: |
-          $exe = "dist/BSDGs_Verificador_Atualizacao_v1.3.2_windows_x64.exe"
-          $result = "dist/bsdgs_self_test_windows_x64.json"
+          $exe = (Resolve-Path "dist/BSDGs_Verificador_Atualizacao_v1.3.2_windows_x64.exe").Path
+          $result = Join-Path $PWD "dist/bsdgs_self_test_windows_x64.json"
 
-          & $exe --self-test-file $result
-          if ($LASTEXITCODE -ne 0) {
-            if (Test-Path $result) {
-              Get-Content $result
-            }
-            throw "O autoteste do executável retornou código $LASTEXITCODE."
+          # O executável foi compilado com console=False (subsistema gráfico).
+          # A chamada direta com "& $exe" pode retornar imediatamente no PowerShell
+          # e deixar $LASTEXITCODE vazio. Start-Process -Wait -PassThru aguarda
+          # efetivamente o encerramento e fornece um ExitCode confiável.
+          $process = Start-Process `
+            -FilePath $exe `
+            -ArgumentList @("--self-test-file", $result) `
+            -Wait `
+            -PassThru
+
+          $exitCode = $process.ExitCode
+          Write-Host "Código de saída do autoteste: $exitCode"
+
+          if (Test-Path $result) {
+            Write-Host "Resultado do autoteste:"
+            Get-Content $result
+          }
+
+          if ($exitCode -ne 0) {
+            throw "O autoteste do executável retornou código $exitCode."
           }
 
           if (-not (Test-Path $result)) {
-            throw "O arquivo do autoteste não foi produzido."
+            throw "O arquivo JSON do autoteste não foi produzido: $result"
           }
 
-          Get-Content $result
+          $json = Get-Content $result -Raw | ConvertFrom-Json
+          if ($json.status -ne "OK") {
+            throw "O JSON do autoteste não registrou status OK."
+          }
+
+      - name: Preservar diagnóstico do autoteste
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BSDGs-Verificador-v1.3.2-self-test
+          path: |
+            dist/bsdgs_self_test_windows_x64.json
+          if-no-files-found: ignore
+          retention-days: 30
 
       - name: Publicar executável x64
         uses: actions/upload-artifact@v4
